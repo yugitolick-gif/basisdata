@@ -1,0 +1,6 @@
+{
+  "name": "BasisDataLab - Latihan & Praktik SQL Basis Data",
+  "description": "Platform interaktif pembelajaran mata kuliah Basis Data untuk mahasiswa: latihan query SQL langsung di browser, visualisasi skema ERD, simulator normalisasi, dan kuis komprehensif.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

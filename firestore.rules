@@ -1,0 +1,122 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Helper functions
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        (request.auth.token.email == 'yugitolick@gmail.com' && request.auth.token.email_verified == true) ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidVisitorSession(data) {
+      return data.keys().hasAll(['sessionId', 'device', 'browser', 'firstSeen', 'lastSeen', 'totalActions', 'lastFeature', 'featuresUsed'])
+        && data.keys().hasOnly(['sessionId', 'device', 'browser', 'firstSeen', 'lastSeen', 'totalActions', 'lastFeature', 'featuresUsed', 'studentName', 'studentNim'])
+        && data.sessionId is string && data.sessionId.size() > 0 && data.sessionId.size() <= 128
+        && data.device is string && data.device.size() <= 50
+        && data.browser is string && data.browser.size() <= 50
+        && data.firstSeen is string && data.firstSeen.size() <= 60
+        && data.lastSeen is string && data.lastSeen.size() <= 60
+        && data.totalActions is number && data.totalActions >= 0
+        && data.lastFeature is string && data.lastFeature.size() <= 100
+        && data.featuresUsed is list && data.featuresUsed.size() <= 50
+        && (!('studentName' in data) || (data.studentName is string && data.studentName.size() <= 100))
+        && (!('studentNim' in data) || (data.studentNim is string && data.studentNim.size() <= 30));
+    }
+
+    function isValidActivityLog(data) {
+      return data.keys().hasAll(['id', 'sessionId', 'timestamp', 'feature', 'action', 'details'])
+        && data.keys().hasOnly(['id', 'sessionId', 'timestamp', 'feature', 'action', 'details', 'studentName', 'studentNim', 'device', 'browser'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.sessionId is string && data.sessionId.size() > 0 && data.sessionId.size() <= 128
+        && data.timestamp is string && data.timestamp.size() <= 60
+        && data.feature is string && data.feature.size() <= 100
+        && data.action is string && data.action.size() <= 100
+        && data.details is string && data.details.size() <= 500
+        && (!('studentName' in data) || (data.studentName is string && data.studentName.size() <= 100))
+        && (!('studentNim' in data) || (data.studentNim is string && data.studentNim.size() <= 30))
+        && (!('device' in data) || (data.device is string && data.device.size() <= 50))
+        && (!('browser' in data) || (data.browser is string && data.browser.size() <= 50));
+    }
+
+    function isValidQuizResult(data) {
+      return data.keys().hasAll(['id', 'sessionId', 'score', 'totalQuestions', 'passed', 'timestamp', 'mode'])
+        && data.keys().hasOnly(['id', 'sessionId', 'score', 'totalQuestions', 'passed', 'timestamp', 'mode', 'studentName', 'studentNim'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.sessionId is string && data.sessionId.size() > 0 && data.sessionId.size() <= 128
+        && data.score is number && data.score >= 0 && data.score <= 100
+        && data.totalQuestions is number && data.totalQuestions >= 0
+        && data.passed is bool
+        && data.timestamp is string && data.timestamp.size() <= 60
+        && data.mode is string && data.mode.size() <= 50
+        && (!('studentName' in data) || (data.studentName is string && data.studentName.size() <= 100))
+        && (!('studentNim' in data) || (data.studentNim is string && data.studentNim.size() <= 30));
+    }
+
+    // Visitor Sessions collection
+    match /visitor_sessions/{sessionId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(sessionId)
+        && isValidVisitorSession(incoming())
+        && incoming().sessionId == sessionId;
+      allow update: if isValidId(sessionId)
+        && isValidVisitorSession(incoming())
+        && incoming().sessionId == existing().sessionId;
+      allow delete: if isAdmin();
+    }
+
+    // Activity Logs collection
+    match /activity_logs/{logId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(logId)
+        && isValidActivityLog(incoming())
+        && incoming().id == logId;
+      allow update, delete: if isAdmin();
+    }
+
+    // Quiz Results collection
+    match /quiz_results/{resultId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(resultId)
+        && isValidQuizResult(incoming())
+        && incoming().id == resultId;
+      allow update, delete: if isAdmin();
+    }
+
+    // Connection testing endpoint
+    match /test/connection {
+      allow read: if true;
+    }
+
+    // Admin collection
+    match /admins/{adminUid} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+  }
+}
