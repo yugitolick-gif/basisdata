@@ -75,6 +75,23 @@ service cloud.firestore {
         && (!('studentNim' in data) || (data.studentNim is string && data.studentNim.size() <= 30));
     }
 
+    function isValidStudent(data) {
+      return data.keys().hasAll(['id', 'nim', 'name', 'class', 'completedChallengeIds', 'createdAt', 'lastActiveAt'])
+        && data.keys().hasOnly(['id', 'nim', 'name', 'class', 'completedChallengeIds', 'exploredNormalizationStages', 'testedAlgebraIds', 'examHighScore', 'queriedDatabases', 'unlockedBadges', 'createdAt', 'lastActiveAt'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.nim is string && data.nim.size() > 0 && data.nim.size() <= 30
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 100
+        && data.class is string && data.class.size() > 0 && data.class.size() <= 50
+        && data.completedChallengeIds is list && data.completedChallengeIds.size() <= 100
+        && (!('exploredNormalizationStages' in data) || (data.exploredNormalizationStages is list && data.exploredNormalizationStages.size() <= 20))
+        && (!('testedAlgebraIds' in data) || (data.testedAlgebraIds is list && data.testedAlgebraIds.size() <= 50))
+        && (!('examHighScore' in data) || (data.examHighScore is number && data.examHighScore >= 0 && data.examHighScore <= 100))
+        && (!('queriedDatabases' in data) || (data.queriedDatabases is list && data.queriedDatabases.size() <= 20))
+        && (!('unlockedBadges' in data) || (data.unlockedBadges is map))
+        && data.createdAt is string && data.createdAt.size() <= 60
+        && data.lastActiveAt is string && data.lastActiveAt.size() <= 60;
+    }
+
     // Visitor Sessions collection
     match /visitor_sessions/{sessionId} {
       allow get: if true;
@@ -106,6 +123,20 @@ service cloud.firestore {
         && isValidQuizResult(incoming())
         && incoming().id == resultId;
       allow update, delete: if isAdmin();
+    }
+
+    // Students collection (Registered students with Nama, NIM, Kelas & Progress)
+    match /students/{studentId} {
+      allow get: if true;
+      allow list: if true;
+      allow create: if isValidId(studentId)
+        && isValidStudent(incoming())
+        && incoming().id == studentId;
+      allow update: if isValidId(studentId)
+        && isValidStudent(incoming())
+        && incoming().id == existing().id
+        && incoming().nim == existing().nim;
+      allow delete: if isAdmin();
     }
 
     // Connection testing endpoint

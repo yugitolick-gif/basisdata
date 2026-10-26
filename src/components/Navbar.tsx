@@ -15,7 +15,8 @@ import {
   Layers,
   FileSpreadsheet,
   BookOpen,
-  ShieldCheck
+  ShieldCheck,
+  GraduationCap
 } from 'lucide-react';
 
 export type NavTab = 'lab' | 'challenges' | 'algebra' | 'quiz' | 'erd' | 'normalization' | 'cheatsheet' | 'admin';
@@ -26,6 +27,10 @@ interface NavbarProps {
   completedChallengesCount: number;
   unlockedBadgesCount: number;
   onOpenProfile: () => void;
+  studentName?: string;
+  studentNim?: string;
+  studentClass?: string;
+  onOpenAuthModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -33,7 +38,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   setActiveTab,
   completedChallengesCount,
   unlockedBadgesCount,
-  onOpenProfile
+  onOpenProfile,
+  studentName,
+  studentNim,
+  studentClass,
+  onOpenAuthModal
 }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -158,8 +167,33 @@ export const Navbar: React.FC<NavbarProps> = ({
           })}
         </nav>
 
-        {/* Zone 3: Admin trigger, Badge status trigger, and Primary action */}
+        {/* Zone 3: Student Identity Chip, Admin trigger, Badge status trigger, and Primary action */}
         <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+          {/* Student Identity Chip */}
+          {studentName ? (
+            <button
+              onClick={onOpenProfile}
+              title={`Mahasiswa Aktif: ${studentName} (${studentNim || ''})${studentClass ? ' • Kelas ' + studentClass : ''} - Klik untuk buka profil & lencana`}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-indigo-900 bg-indigo-50/90 hover:bg-indigo-100 border border-indigo-200/80 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer shadow-2xs max-w-[130px] xs:max-w-[170px] sm:max-w-[220px]"
+            >
+              <GraduationCap className="w-3.5 h-3.5 text-indigo-600 shrink-0" />
+              <span className="truncate">{studentName}</span>
+              {studentClass && (
+                <span className="hidden md:inline px-1.5 py-0.2 rounded bg-indigo-200/70 text-indigo-900 text-[10px] font-mono shrink-0">
+                  {studentClass}
+                </span>
+              )}
+            </button>
+          ) : (
+            <button
+              onClick={onOpenAuthModal}
+              className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 text-xs font-semibold text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors whitespace-nowrap shrink-0 shadow-xs cursor-pointer"
+            >
+              <GraduationCap className="w-3.5 h-3.5" />
+              <span>Masuk Mahasiswa</span>
+            </button>
+          )}
+
           {/* Admin Button */}
           <button
             onClick={() => handleSelectTab('admin')}
@@ -174,7 +208,7 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden xs:inline">Admin</span>
           </button>
 
-          {/* Student Profile / Badges Button */}
+          {/* Student Badges Button */}
           <button
             onClick={onOpenProfile}
             title="Buka Profil Mahasiswa & Lencana Prestasi"
@@ -263,6 +297,45 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* Full-Screen Mobile Drawer / Dropdown Menu */}
       {isMobileMenuOpen && (
         <div className="lg:hidden border-t border-slate-200 bg-white shadow-xl px-4 py-4 space-y-1 animate-in slide-in-from-top-2 duration-150">
+          {/* Active Student Status in Mobile Menu */}
+          {studentName ? (
+            <div className="bg-indigo-50/90 border border-indigo-200/80 rounded-xl p-3 mb-3 flex items-center justify-between gap-2 shadow-2xs">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-9 h-9 rounded-lg bg-indigo-600 text-white flex items-center justify-center font-bold text-sm shrink-0 shadow-xs">
+                  <GraduationCap className="w-4.5 h-4.5" />
+                </div>
+                <div className="min-w-0">
+                  <div className="font-bold text-xs text-slate-900 truncate">{studentName}</div>
+                  <div className="text-[10px] text-slate-500 font-mono truncate">
+                    NIM: {studentNim || '-'} {studentClass ? `• Kelas ${studentClass}` : ''}
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  onOpenProfile();
+                }}
+                className="px-2.5 py-1 text-xs font-semibold text-indigo-700 bg-white border border-indigo-200 rounded-lg hover:bg-indigo-100 transition-colors shrink-0 cursor-pointer shadow-2xs"
+              >
+                Profil
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                if (onOpenAuthModal) onOpenAuthModal();
+              }}
+              className="w-full mb-3 py-2.5 px-3 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-2 shadow-xs cursor-pointer"
+            >
+              <GraduationCap className="w-4 h-4" />
+              <span>Masuk / Daftar Mahasiswa</span>
+            </button>
+          )}
+
           <div className="text-[11px] font-bold text-slate-400 uppercase tracking-wider px-2 py-1 mb-1">
             Menu Modul Pembelajaran
           </div>

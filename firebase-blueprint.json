@@ -172,6 +172,72 @@
         }
       },
       "required": ["id", "sessionId", "score", "totalQuestions", "passed", "timestamp", "mode"]
+    },
+    "Student": {
+      "title": "Student",
+      "description": "Registered student with Nama, NIM, Kelas, and persistent learning progress",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "maxLength": 128,
+          "description": "Unique student identifier based on normalized NIM"
+        },
+        "nim": {
+          "type": "string",
+          "maxLength": 30,
+          "description": "Student identification number (NIM)"
+        },
+        "name": {
+          "type": "string",
+          "maxLength": 100,
+          "description": "Student full name"
+        },
+        "class": {
+          "type": "string",
+          "maxLength": 50,
+          "description": "Student class (e.g. TI-2A, SI-3B)"
+        },
+        "completedChallengeIds": {
+          "type": "array",
+          "description": "List of completed SQL challenge IDs"
+        },
+        "exploredNormalizationStages": {
+          "type": "array",
+          "description": "List of explored normalization stage identifiers"
+        },
+        "testedAlgebraIds": {
+          "type": "array",
+          "description": "List of tested relational algebra formula IDs"
+        },
+        "examHighScore": {
+          "type": "number",
+          "description": "Highest score achieved in UAS exam simulation"
+        },
+        "queriedDatabases": {
+          "type": "array",
+          "description": "List of queried database keys"
+        },
+        "createdAt": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "ISO timestamp when the student was first registered"
+        },
+        "lastActiveAt": {
+          "type": "string",
+          "maxLength": 60,
+          "description": "ISO timestamp of the student's latest activity"
+        }
+      },
+      "required": [
+        "id",
+        "nim",
+        "name",
+        "class",
+        "completedChallengeIds",
+        "createdAt",
+        "lastActiveAt"
+      ]
     }
   },
   "firestore": {
@@ -186,6 +252,10 @@
     "/quiz_results/{resultId}": {
       "schema": "QuizResult",
       "description": "Student completion records for quizzes and exam simulations"
+    },
+    "/students/{studentId}": {
+      "schema": "Student",
+      "description": "Registered students database with credentials (Nama, NIM, Kelas) and persistent learning progress"
     }
   }
 }

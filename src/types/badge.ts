@@ -12,8 +12,10 @@ export interface Badge {
 }
 
 export interface UserProgressData {
+  studentId?: string;
   studentName: string;
   studentNim: string;
+  studentClass?: string;
   completedChallengeIds: string[];
   exploredNormalizationStages: string[];
   testedAlgebraIds: string[];
@@ -21,3 +23,4 @@ export interface UserProgressData {
   queriedDatabases: string[];
   unlockedBadges: Record<string, string>; // badgeId -> ISO timestamp
 }
+

@@ -99,6 +99,25 @@ const STORAGE_KEY = 'basisdatalab_user_progress_v1';
 export class BadgeService {
   public static loadProgress(): UserProgressData {
     try {
+      const activeRaw = localStorage.getItem('basisdatalab_active_student_v1');
+      if (activeRaw) {
+        const student = JSON.parse(activeRaw);
+        if (student && student.nim) {
+          return {
+            studentId: student.id,
+            studentName: student.name,
+            studentNim: student.nim,
+            studentClass: student.class,
+            completedChallengeIds: student.completedChallengeIds || [],
+            exploredNormalizationStages: student.exploredNormalizationStages || ['UNF'],
+            testedAlgebraIds: student.testedAlgebraIds || [],
+            examHighScore: student.examHighScore ?? 0,
+            queriedDatabases: student.queriedDatabases || ['universitas'],
+            unlockedBadges: student.unlockedBadges || {}
+          };
+        }
+      }
+
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         return JSON.parse(raw);
@@ -108,8 +127,9 @@ export class BadgeService {
     }
 
     return {
-      studentName: 'Mahasiswa Basis Data',
-      studentNim: '2024-KOMP',
+      studentName: '',
+      studentNim: '',
+      studentClass: '',
       completedChallengeIds: [],
       exploredNormalizationStages: ['UNF'],
       testedAlgebraIds: [],

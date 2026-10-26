@@ -10,11 +10,14 @@ import { NormalizationSimulator } from './components/NormalizationSimulator';
 import { SqlCheatsheet } from './components/SqlCheatsheet';
 import { ProfileBadgeModal } from './components/ProfileBadgeModal';
 import { AdminDashboard } from './components/AdminDashboard';
+import { StudentAuthModal } from './components/StudentAuthModal';
 import { BadgeService } from './services/badgeService';
+import { StudentService } from './services/studentService';
 import { analytics } from './services/analyticsService';
 import { DatasetKey } from './types/database';
 import { Badge, UserProgressData } from './types/badge';
-import { Trophy, Sparkles, X, ShieldCheck } from 'lucide-react';
+import { StudentRecord } from './types/student';
+import { Trophy, Sparkles, X, ShieldCheck, GraduationCap, LogOut, CheckCircle2 } from 'lucide-react';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavTab>('lab');
@@ -24,6 +27,12 @@ export default function App() {
   // Full student progress state
   const [userProgress, setUserProgress] = useState<UserProgressData>(() => {
     return BadgeService.loadProgress();
+  });
+
+  // Mandatory student gate: open if no student profile has been registered or logged in
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(() => {
+    const active = StudentService.getActiveStudent();
+    return !active || !active.nim;
   });
 
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
@@ -40,8 +49,8 @@ export default function App() {
       'SQL Playground',
       'Membuka Website',
       'Pengunjung Membuka Platform BasisDataLab',
-      userProgress.studentName,
-      userProgress.studentNim
+      userProgress.studentName || 'Pengunjung Baru',
+      userProgress.studentNim || 'Belum Terdaftar'
     );
   }, []);
 
@@ -66,10 +75,22 @@ export default function App() {
     );
   };
 
-  // Helper to run badge evaluation
+  // Helper to run badge evaluation & sync with Firestore
   const evaluateBadges = (newProgress: UserProgressData) => {
     const { updatedProgress, newlyUnlocked } = BadgeService.checkAndUnlockBadges(newProgress);
     setUserProgress(updatedProgress);
+
+    // Sync progress in real-time to Google Cloud Firestore
+    if (updatedProgress.studentId) {
+      StudentService.syncStudentProgress(updatedProgress.studentId, {
+        completedChallengeIds: updatedProgress.completedChallengeIds,
+        exploredNormalizationStages: updatedProgress.exploredNormalizationStages,
+        testedAlgebraIds: updatedProgress.testedAlgebraIds,
+        examHighScore: updatedProgress.examHighScore,
+        queriedDatabases: updatedProgress.queriedDatabases,
+        unlockedBadges: updatedProgress.unlockedBadges
+      });
+    }
 
     if (newlyUnlocked.length > 0) {
       setUnlockedToastBadge(newlyUnlocked[0]);
@@ -79,7 +100,54 @@ export default function App() {
     }
   };
 
-  // Milestone triggers with analytics tracking
+  // Handle successful student registration or login from modal
+  const handleStudentAuthenticated = (student: StudentRecord) => {
+    const loadedProgress: UserProgressData = {
+      studentId: student.id,
+      studentName: student.name,
+      studentNim: student.nim,
+      studentClass: student.class,
+      completedChallengeIds: student.completedChallengeIds || [],
+      exploredNormalizationStages: student.exploredNormalizationStages || ['UNF'],
+      testedAlgebraIds: student.testedAlgebraIds || [],
+      examHighScore: student.examHighScore ?? 0,
+      queriedDatabases: student.queriedDatabases || ['universitas'],
+      unlockedBadges: student.unlockedBadges || {}
+    };
+
+    setUserProgress(loadedProgress);
+    BadgeService.saveProgress(loadedProgress);
+    analytics.setStudentProfile(student.name, student.nim);
+    setIsAuthModalOpen(false);
+
+    analytics.trackEvent(
+      'Autentikasi Mahasiswa',
+      'Sesi Aktif',
+      `Mahasiswa: ${student.name} (NIM: ${student.nim}, Kelas: ${student.class})`,
+      student.name,
+      student.nim
+    );
+  };
+
+  // Handle student logout / switch account
+  const handleSwitchStudent = () => {
+    StudentService.logoutStudent();
+    setUserProgress({
+      studentId: '',
+      studentName: '',
+      studentNim: '',
+      studentClass: '',
+      completedChallengeIds: [],
+      exploredNormalizationStages: ['UNF'],
+      testedAlgebraIds: [],
+      examHighScore: 0,
+      queriedDatabases: ['universitas'],
+      unlockedBadges: {}
+    });
+    setIsAuthModalOpen(true);
+  };
+
+  // Milestone triggers with analytics tracking & cloud sync
   const handleToggleChallengeComplete = (id: string) => {
     analytics.trackEvent(
       'Tantangan Praktik',
@@ -159,6 +227,12 @@ export default function App() {
     setUserProgress(nextProgress);
     BadgeService.saveProgress(nextProgress);
     analytics.setStudentProfile(name, nim);
+    if (nextProgress.studentId) {
+      StudentService.syncStudentProgress(nextProgress.studentId, {
+        name,
+        nim
+      });
+    }
     analytics.trackEvent(
       'Profil Mahasiswa',
       'Perbarui Profil',
@@ -174,6 +248,7 @@ export default function App() {
   };
 
   const unlockedCount = Object.keys(userProgress.unlockedBadges).length;
+  const isStudentReady = Boolean(userProgress.studentNim && userProgress.studentName);
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900 selection:bg-indigo-100 selection:text-indigo-900">
@@ -184,7 +259,45 @@ export default function App() {
         completedChallengesCount={userProgress.completedChallengeIds.length}
         unlockedBadgesCount={unlockedCount}
         onOpenProfile={() => setIsProfileModalOpen(true)}
+        studentName={userProgress.studentName}
+        studentNim={userProgress.studentNim}
+        studentClass={userProgress.studentClass}
+        onOpenAuthModal={() => setIsAuthModalOpen(true)}
       />
+
+      {/* Active Student Greeting & Cloud Status Banner */}
+      {isStudentReady && (
+        <div className="bg-indigo-900 text-white text-xs px-4 py-2 border-b border-indigo-800 shadow-2xs">
+          <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <GraduationCap className="w-4 h-4 text-indigo-300 shrink-0" />
+              <span>
+                Mahasiswa Aktif: <strong className="text-white">{userProgress.studentName}</strong> (NIM: <span className="font-mono text-indigo-200">{userProgress.studentNim}</span> {userProgress.studentClass ? `• Kelas: ${userProgress.studentClass}` : ''})
+              </span>
+              <span className="hidden md:inline-flex items-center gap-1 text-[11px] text-emerald-300 bg-emerald-950/70 px-2 py-0.5 rounded border border-emerald-500/30">
+                <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                Tersinkronisasi ke Google Cloud Firestore
+              </span>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => setIsProfileModalOpen(true)}
+                className="text-xs text-indigo-200 hover:text-white underline cursor-pointer"
+              >
+                Lihat Lencana ({unlockedCount}/9)
+              </button>
+              <span className="text-indigo-400" aria-hidden="true">·</span>
+              <button
+                onClick={handleSwitchStudent}
+                className="text-xs text-rose-300 hover:text-rose-100 font-semibold cursor-pointer flex items-center gap-1"
+              >
+                <LogOut className="w-3 h-3" />
+                <span>Ganti Mahasiswa</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Content Area */}
       <main className="flex-1">
@@ -252,6 +365,15 @@ export default function App() {
         onClose={() => setIsProfileModalOpen(false)}
         userProgress={userProgress}
         onUpdateProfileName={handleUpdateProfileName}
+        onSwitchStudent={handleSwitchStudent}
+      />
+
+      {/* Mandatory Student Identity Verification Gate Modal */}
+      <StudentAuthModal
+        isOpen={isAuthModalOpen}
+        onSuccess={handleStudentAuthenticated}
+        allowClose={isStudentReady}
+        onClose={() => setIsAuthModalOpen(false)}
       />
 
       {/* Newly Unlocked Badge Celebration Toast */}
